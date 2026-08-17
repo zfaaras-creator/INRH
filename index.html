@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Journal de Pêche — Suivi des débarquements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --navy-deep:   #EAF5F6;
+    --navy:        #FFFFFF;
+    --navy-panel:  #FFFFFF;
+    --line:        #DCEBEC;
+    --foam:        #1B3A3F;
+    --foam-dim:    #5B7B80;
+    --brass:       #2E8B9A;
+    --brass-light: #3AA7B8;
+    --coral:       #F2994A;
+    --ink:         #FFFFFF;
+    --teal-deep:   #123B47;
+    --teal:        #1E6E7D;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--navy-deep);
+    color:var(--foam);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--brass-light); color:#fff;}
+
+  a{color:inherit;}
+
+  .wave-rule{ display:none; }
+
+  header.masthead{
+    background:linear-gradient(120deg, var(--teal-deep) 0%, var(--teal) 100%);
+    border-bottom:none;
+    padding:44px 6vw 46px;
+    border-radius:0 0 22px 22px;
+  }
+  .masthead-inner{
+    max-width:1180px;
+    margin:0 auto;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:24px;
+    flex-wrap:wrap;
+  }
+  .brand-row{display:flex; align-items:center; gap:16px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    font-size:12px;
+    color:rgba(255,255,255,0.75);
+    margin:0 0 6px;
+  }
+  h1.title{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(32px, 4.4vw, 50px);
+    line-height:1.04;
+    margin:0;
+    color:#fff;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{
+    max-width:480px;
+    color:rgba(255,255,255,0.82);
+    font-size:15px;
+    line-height:1.55;
+    margin:14px 0 0;
+  }
+  .stat-strip{
+    display:flex;
+    gap:28px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .stat{ text-align:right; }
+  .stat .n{ font-size:26px; color:#fff; font-weight:600; display:block; line-height:1;}
+  .stat .l{ font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:rgba(255,255,255,0.7); display:block; margin-top:6px;}
+
+  main{
+    max-width:1180px;
+    margin:0 auto;
+    padding:44px 6vw 90px;
+    display:grid;
+    grid-template-columns:220px 1fr;
+    gap:40px;
+  }
+  @media (max-width:860px){
+    main{grid-template-columns:1fr; gap:28px;}
+    .rail{flex-direction:row !important; overflow-x:auto;}
+  }
+
+  .rail{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    position:sticky;
+    top:24px;
+    align-self:start;
+  }
+  .rail-step{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:14px 4px;
+    border-left:2px solid var(--line);
+    padding-left:16px;
+    cursor:pointer;
+    transition:border-color .2s ease;
+  }
+  .rail-step.active{ border-left-color:var(--brass); }
+  .rail-step .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--foam-dim);
+  }
+  .rail-step.active .num{ color:var(--brass); }
+  .rail-step .lbl{
+    font-size:13.5px;
+    font-weight:500;
+    color:var(--foam-dim);
+  }
+  .rail-step.active .lbl{ color:var(--foam); }
+  .rail-step.done .num::after{ content:" ✓"; color:var(--brass); }
+
+  section.panel{
+    background:var(--navy-panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:32px;
+    margin-bottom:28px;
+    box-shadow:0 4px 24px rgba(30,110,125,0.07);
+  }
+  section.panel h2{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:22px;
+    margin:0 0 6px;
+    color:var(--foam);
+  }
+  section.panel .panel-desc{
+    font-size:13.5px;
+    color:var(--foam-dim);
+    margin:0 0 22px;
+    line-height:1.5;
+  }
+
+  .dropzone{
+    border:1.5px dashed #BFE0E4;
+    border-radius:12px;
+    padding:40px 20px;
+    text-align:center;
+    background:#F5FBFC;
+    transition:border-color .15s ease, background .15s ease;
+    cursor:pointer;
+  }
+  .dropzone.drag{ border-color:var(--brass); background:#EAF7F8; }
+  .dropzone svg{ width:30px; height:30px; stroke:var(--brass); margin-bottom:10px;}
+  .dropzone p{ margin:0 0 4px; font-size:14px; color:var(--foam-dim);}
+  .dropzone .hint{ font-size:12px; color:var(--foam-dim); opacity:0.7;}
+  input[type=file]{ display:none; }
+
+  .btn{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    border:none;
+    border-radius:8px;
+    padding:12px 22px;
+    cursor:pointer;
+    transition:transform .1s ease, background .15s ease;
+  }
+  .btn-brass{ background:var(--brass); color:#fff; }
+  .btn-brass:hover{ background:var(--brass-light); }
+  .btn-brass:active{ transform:scale(0.98); }
+  .btn-ghost{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--foam-dim);
+  }
+  .btn-ghost:hover{ color:var(--foam); border-color:var(--foam-dim); }
+
+  .file-list{ margin-top:16px; display:flex; flex-direction:column; gap:6px; }
+  .file-row{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    padding:9px 12px;
+    background:#F5FBFC;
+    border:1px solid var(--line);
+    border-radius:8px;
+    color:var(--foam-dim);
+  }
+  .file-row .ok{ color:var(--brass); }
+  .file-row .err{ color:var(--coral); }
+
+  .query-row{ display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .query-input{
+    flex:1;
+    min-width:220px;
+    background:#F5FBFC;
+    border:1px solid var(--line);
+    border-radius:8px;
+    color:var(--foam);
+    padding:13px 16px;
+    font-size:14.5px;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .query-input:focus{ outline:none; border-color:var(--brass); }
+  .query-input::placeholder{ color:var(--foam-dim); opacity:0.7; }
+
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:4px;}
+  .chip{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    padding:7px 13px;
+    border-radius:20px;
+    border:1px solid var(--line);
+    color:var(--brass);
+    cursor:pointer;
+    background:#EAF7F8;
+  }
+  .chip:hover{ border-color:var(--brass); background:#DDF0F2; }
+
+  .empty-note{
+    font-size:13px;
+    color:var(--foam-dim);
+    opacity:0.75;
+    font-style:italic;
+    margin-top:14px;
+  }
+
+  .ledger-wrap{ margin-top:24px; overflow-x:auto; }
+  .ledger-meta{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom:10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--foam-dim);
+  }
+  table.ledger{
+    width:100%;
+    border-collapse:collapse;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+  }
+  table.ledger th{
+    text-align:left;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    font-size:10.5px;
+    color:var(--brass);
+    border-bottom:1px solid var(--line);
+    padding:0 14px 10px 0;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  table.ledger td{
+    padding:11px 14px 11px 0;
+    border-bottom:1px solid var(--line);
+    color:var(--foam);
+    white-space:nowrap;
+  }
+  table.ledger tr:hover td{ background:#F5FBFC; }
+  .weight-cell{ display:flex; align-items:center; gap:10px; }
+  .weight-bar-track{ width:70px; height:5px; background:#DCEBEC; border-radius:3px; overflow:hidden; flex:none;}
+  .weight-bar-fill{ height:100%; background:linear-gradient(90deg, var(--brass), var(--coral)); border-radius:3px;}
+  .weight-num{ min-width:64px; text-align:right; }
+
+  .status-banner{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    padding:11px 14px;
+    border-radius:8px;
+    margin-bottom:16px;
+    display:none;
+  }
+  .status-banner.show{ display:block; }
+  .status-banner.info{ background:#EAF7F8; color:var(--teal); border:1px solid #BFE0E4;}
+  .status-banner.error{ background:#FDEEE3; color:#C9691F; border:1px solid #F5C99A;}
+  .status-banner.success{ background:#EAF7F8; color:var(--teal); border:1px solid #BFE0E4;}
+
+  footer{
+    border-top:1px solid var(--line);
+    padding:26px 6vw;
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--foam-dim);
+    opacity:0.8;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brand-row">
+      <div>
+        <p class="eyebrow">Suivi des débarquements · Côte atlantique</p>
+        <h1 class="title">Journal de Pêche</h1>
+        <p class="subtitle">Importez vos relevés d'exploitation, posez vos questions en langage courant. « poids du lundi à Boujdour ».</p>
+      </div>
+    </div>
+    <div class="stat-strip">
+      <div class="stat"><span class="n" id="statLignes">0</span><span class="l">Lignes</span></div>
+      <div class="stat"><span class="n" id="statVilles">0</span><span class="l">Ports</span></div>
+      <div class="stat"><span class="n" id="statFichiers">0</span><span class="l">Fichiers</span></div>
+    </div>
+  </div>
+</header>
+<div class="wave-rule"></div>
+
+<main>
+  <nav class="rail">
+    <div class="rail-step active" id="railStep1" data-target="panel1">
+      <span class="num">01</span><span class="lbl">Importer</span>
+    </div>
+    <div class="rail-step" id="railStep2" data-target="panel2">
+      <span class="num">02</span><span class="lbl">Interroger</span>
+    </div>
+  </nav>
+
+  <div>
+    <section class="panel" id="panel1">
+      <h2>Importer les fichiers</h2>
+      <p class="panel-desc">Glissez vos fichiers .xlsx d'exploitation. Les données restent dans cette page le temps de la session — rien n'est envoyé en ligne.</p>
+
+      <div id="statusBanner" class="status-banner"></div>
+
+      <div class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>
+        <p>Glissez vos fichiers .xlsx ici, ou</p>
+        <div class="hint">plusieurs fichiers acceptés à la fois</div>
+        <div style="margin-top:16px;">
+          <button class="btn btn-brass" id="chooseBtn" type="button">Choisir des fichiers</button>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx" multiple>
+      </div>
+
+      <div class="file-list" id="fileList"></div>
+    </section>
+
+    <section class="panel" id="panel2">
+      <h2>Poser une question</h2>
+      <p class="panel-desc">Écrivez en français : un jour, un port, un mot-clé (poids, bateau, code, espèce, destination).</p>
+
+      <div class="query-row">
+        <input type="text" class="query-input" id="queryInput" placeholder="poids du lundi à Boujdour">
+        <button class="btn btn-brass" id="searchBtn" type="button">Chercher</button>
+      </div>
+
+      <div class="chips" id="chipRow"></div>
+
+      <div id="resultsArea"></div>
+    </section>
+  </div>
+</main>
+
+<footer>Journal de Pêche — outil de suivi, démonstration académique</footer>
+
+<script>
+/* ============================================================
+   Cette version fonctionne entièrement dans le navigateur.
+   Les données importées restent en mémoire le temps de la session
+   (elles disparaissent si tu recharges la page) — rien n'est
+   envoyé ni stocké en ligne.
+============================================================ */
+
+const JOURS = { 0:"lundi", 1:"mardi", 2:"mercredi", 3:"jeudi", 4:"vendredi", 5:"samedi", 6:"dimanche" };
+const MOTS_COLONNES = {
+  "poids":"poids_total", "kilo":"poids_total", "kg":"poids_total",
+  "bateau":"nom_bateau", "code":"code_bateau",
+  "espece":"cat_espece", "espèce":"cat_espece",
+  "destination":"desig_destination"
+};
+const LABELS = {
+  date:"Date", ville:"Port", nom_bateau:"Bateau", code_bateau:"Code",
+  cat_espece:"Espèce", poids_total:"Poids (kg)", desig_destination:"Destination", jour:"Jour"
+};
+
+let dataset = []; // in-memory rows for this browser session only
+let filesSeen = 0;
+let fichiersImportes = new Set(); // empreintes (hash du contenu) des fichiers déjà importés
+
+async function empreinteFichier(buf){
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buf);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function sansAccent(t){
+  return t.toLowerCase()
+    .replace(/[âàä]/g,"a").replace(/[êèéë]/g,"e").replace(/[îï]/g,"i")
+    .replace(/[ôö]/g,"o").replace(/[ûùü]/g,"u").replace(/ç/g,"c");
+}
+
+function showStatus(msg, type){
+  const el = document.getElementById("statusBanner");
+  el.textContent = msg;
+  el.className = "status-banner show " + type;
+}
+
+function updateStats(){
+  document.getElementById("statLignes").textContent = dataset.length;
+  document.getElementById("statVilles").textContent = new Set(dataset.map(r=>r.ville)).size;
+  document.getElementById("statFichiers").textContent = filesSeen;
+}
+
+function setActiveStep(n){
+  document.getElementById("railStep1").classList.toggle("active", n===1);
+  document.getElementById("railStep2").classList.toggle("active", n===2);
+}
+
+/* ---------- Parsing des fichiers Excel (miroir de la logique Python) ---------- */
+
+function trouverLigneEntete(rows){
+  for(let i=0;i<rows.length;i++){
+    if(rows[i].some(v => v === "DATE_EXPLOITATION")) return i;
+  }
+  return null;
+}
+
+function trouverVille(rows){
+  for(const row of rows){
+    for(const v of row){
+      if(typeof v === "string" && v.toUpperCase().includes("CAPI")){
+        return v.toUpperCase().replace("CAPI","").trim()
+          .toLowerCase().replace(/\b\w/g, c=>c.toUpperCase());
+      }
+    }
+  }
+  return "Ville inconnue";
+}
+
+function excelDateToISO(val){
+  if(val == null || val === "") return null;
+  if(typeof val === "number"){
+    const d = XLSX.SSF.parse_date_code(val);
+    if(!d) return null;
+    return new Date(Date.UTC(d.y, d.m-1, d.d));
+  }
+  if(val instanceof Date) return val;
+  const parts = String(val).split(/[\/\-]/);
+  if(parts.length===3){
+    // dayfirst
+    let [a,b,c] = parts.map(x=>parseInt(x,10));
+    if(c < 100) c += 2000;
+    return new Date(Date.UTC(c, b-1, a));
+  }
+  return null;
+}
+
+async function importerFichier(file, buf){
+  const wb = XLSX.read(buf, { type:"array", cellDates:false });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rowsRaw = XLSX.utils.sheet_to_json(sheet, { header:1, defval:null });
+
+  const ligneEntete = trouverLigneEntete(rowsRaw);
+  if(ligneEntete === null){
+    return { ok:false, name:file.name, reason:"format non reconnu" };
+  }
+  const ville = trouverVille(rowsRaw);
+  const headers = rowsRaw[ligneEntete];
+
+  const colonnesUtiles = ["DATE_EXPLOITATION","NOM_BATEAU","CODE_BATEAU","CAT_ESPECE","Poids_total","DESIG_DESTINATION"];
+  const colIndex = {};
+  colonnesUtiles.forEach(c=>{
+    const idx = headers.findIndex(h => h === c);
+    if(idx !== -1) colIndex[c] = idx;
+  });
+
+  const dataRows = rowsRaw.slice(ligneEntete+1).filter(r => r && r.some(v => v !== null && v !== ""));
+
+  const parsed = [];
+  for(const r of dataRows){
+    const dateVal = colIndex["DATE_EXPLOITATION"] !== undefined ? r[colIndex["DATE_EXPLOITATION"]] : null;
+    const d = excelDateToISO(dateVal);
+    if(!d) continue;
+    const jour = JOURS[d.getUTCDay() === 0 ? 6 : d.getUTCDay()-1]; // JS Sunday=0 -> align to Python Monday=0
+    const jsDay = d.getUTCDay(); // 0=Sun..6=Sat
+    const pyDay = (jsDay + 6) % 7; // convert to Monday=0..Sunday=6
+    parsed.push({
+      date: d.toISOString().slice(0,10),
+      nom_bateau: colIndex["NOM_BATEAU"]!==undefined ? r[colIndex["NOM_BATEAU"]] : null,
+      code_bateau: colIndex["CODE_BATEAU"]!==undefined ? String(r[colIndex["CODE_BATEAU"]] ?? "") : null,
+      cat_espece: colIndex["CAT_ESPECE"]!==undefined ? r[colIndex["CAT_ESPECE"]] : null,
+      poids_total: colIndex["Poids_total"]!==undefined ? Number(r[colIndex["Poids_total"]]) || 0 : null,
+      desig_destination: colIndex["DESIG_DESTINATION"]!==undefined ? r[colIndex["DESIG_DESTINATION"]] : null,
+      ville: ville,
+      jour: JOURS[pyDay]
+    });
+  }
+
+  return { ok:true, name:file.name, ville, rows:parsed };
+}
+
+async function handleFiles(fileListObj){
+  const files = Array.from(fileListObj).filter(f => f.name.endsWith(".xlsx"));
+  if(files.length===0){
+    showStatus("Aucun fichier .xlsx sélectionné.", "error");
+    return;
+  }
+  showStatus("Import en cours…", "info");
+  const logEl = document.getElementById("fileList");
+
+  for(const file of files){
+    const row = document.createElement("div");
+    row.className = "file-row";
+
+    const buf = await file.arrayBuffer();
+    const empreinte = await empreinteFichier(buf);
+
+    if(fichiersImportes.has(empreinte)){
+      row.innerHTML = `<span>${file.name}</span><span class="err">⚠ déjà importé — ignoré</span>`;
+      logEl.appendChild(row);
+      continue;
+    }
+
+    const result = await importerFichier(file, buf);
+    filesSeen++;
+    if(!result.ok){
+      row.innerHTML = `<span>${result.name}</span><span class="err">✕ ${result.reason}</span>`;
+      logEl.appendChild(row);
+      continue;
+    }
+
+    fichiersImportes.add(empreinte);
+    dataset = dataset.concat(result.rows);
+    row.innerHTML = `<span>${result.name} → ${result.ville}</span><span class="ok">✓ ${result.rows.length} lignes importées</span>`;
+    logEl.appendChild(row);
+  }
+
+  updateStats();
+  showStatus("Import terminé.", "success");
+  setActiveStep(2);
+  document.getElementById("railStep1").classList.add("done");
+}
+
+/* ---------- Recherche en langage naturel ---------- */
+
+function repondreQuestion(question){
+  const qn = sansAccent(question);
+  const villesDisponibles = [...new Set(dataset.map(r=>r.ville).filter(Boolean))];
+
+  let jourTrouve = null;
+  for(const j of Object.values(JOURS)){
+    if(qn.includes(j)){ jourTrouve = j; break; }
+  }
+
+  let villeTrouvee = null;
+  for(const v of villesDisponibles){
+    if(qn.includes(sansAccent(v))){ villeTrouvee = v; break; }
+  }
+
+  let colonnesDemandees = [];
+  for(const [motCle, col] of Object.entries(MOTS_COLONNES)){
+    if(qn.includes(motCle) && !colonnesDemandees.includes(col)) colonnesDemandees.push(col);
+  }
+
+  let resultat = dataset;
+  if(jourTrouve) resultat = resultat.filter(r=>r.jour===jourTrouve);
+  if(villeTrouvee) resultat = resultat.filter(r=>r.ville===villeTrouvee);
+
+  renderResults(resultat, colonnesDemandees);
+}
+
+function renderResults(rows, colonnesDemandees){
+  const area = document.getElementById("resultsArea");
+  if(dataset.length===0){
+    area.innerHTML = `<p class="empty-note">Importez d'abord au moins un fichier Excel pour pouvoir poser vos questions.</p>`;
+    return;
+  }
+  if(rows.length===0){
+    area.innerHTML = `<p class="empty-note">Aucun résultat pour cette question. Essayez « poids du lundi à Boujdour ».</p>`;
+    return;
+  }
+
+  const cols = colonnesDemandees.length>0
+    ? ["date","ville",...colonnesDemandees]
+    : ["date","ville","jour","nom_bateau","code_bateau","cat_espece","poids_total","desig_destination"];
+
+  const maxPoids = Math.max(...rows.map(r=>Number(r.poids_total)||0), 1);
+
+  let html = `<div class="ledger-wrap">
+    <div class="ledger-meta"><span>${rows.length} ligne${rows.length>1?"s":""}</span></div>
+    <table class="ledger"><thead><tr>`;
+  cols.forEach(c => html += `<th>${LABELS[c]||c}</th>`);
+  html += `</tr></thead><tbody>`;
+
+  rows.slice(0,300).forEach(r=>{
+    html += "<tr>";
+    cols.forEach(c=>{
+      if(c==="poids_total"){
+        const val = Number(r.poids_total)||0;
+        const pct = Math.max(4, Math.round((val/maxPoids)*100));
+        html += `<td><div class="weight-cell"><div class="weight-bar-track"><div class="weight-bar-fill" style="width:${pct}%"></div></div><span class="weight-num">${val.toLocaleString('fr-FR')}</span></div></td>`;
+      } else {
+        html += `<td>${r[c] ?? "—"}</td>`;
+      }
+    });
+    html += "</tr>";
+  });
+  html += "</tbody></table></div>";
+  if(rows.length>300){
+    html += `<p class="empty-note">Affichage limité aux 300 premières lignes sur ${rows.length}.</p>`;
+  }
+  area.innerHTML = html;
+}
+
+/* ---------- Câblage UI ---------- */
+
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+document.getElementById("chooseBtn").addEventListener("click", ()=>fileInput.click());
+fileInput.addEventListener("change", e => { handleFiles(e.target.files); fileInput.value = ""; });
+
+["dragenter","dragover"].forEach(evt=>{
+  dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.add("drag"); });
+});
+["dragleave","drop"].forEach(evt=>{
+  dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.remove("drag"); });
+});
+dropzone.addEventListener("drop", e=>{
+  if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+dropzone.addEventListener("click", (e)=>{ if(e.target===dropzone) fileInput.click(); });
+
+document.getElementById("searchBtn").addEventListener("click", ()=>{
+  repondreQuestion(document.getElementById("queryInput").value.trim());
+});
+document.getElementById("queryInput").addEventListener("keydown", e=>{
+  if(e.key==="Enter") repondreQuestion(e.target.value.trim());
+});
+
+const exemples = ["poids du lundi à Boujdour","jeudi toutes les villes","espèce et poids à Laâyoune","bateau du samedi"];
+const chipRow = document.getElementById("chipRow");
+exemples.forEach(ex=>{
+  const b = document.createElement("button");
+  b.className = "chip"; b.textContent = ex;
+  b.addEventListener("click", ()=>{
+    document.getElementById("queryInput").value = ex;
+    repondreQuestion(ex);
+  });
+  chipRow.appendChild(b);
+});
+
+document.querySelectorAll(".rail-step").forEach(step=>{
+  step.addEventListener("click", ()=>{
+    document.getElementById(step.dataset.target).scrollIntoView({behavior:"smooth", block:"start"});
+  });
+});
+
+/* ---------- Démarrage ---------- */
+renderResults([], []);
+</script>
+</body>
+</html>
